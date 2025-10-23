@@ -1,3 +1,4 @@
+/* init style */
 * {
   margin: 0;
   padding: 0;
@@ -46,3 +47,29 @@
   align-items: center;
   padding: 0 12px;
 }
+
+/* tree style */
+.file-tree-box {
+  padding: 10px;
+}
+
+.file-list {
+  margin-top: 10px;
+  list-style: none;
+}
+
+.file-list li {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.file-list li:hover {
+  background: #e4e4e4;
+}
+
+.file-list li.active {
+  background: #d0d0d0;
+  font-weight: bold;
+}
+
