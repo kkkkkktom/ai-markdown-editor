@@ -1,5 +1,7 @@
 import './styles/global.css';
-import FileTree from './component/FileTree'
+import FileTree from './components/FileTree';
+import Editor from './components/Editor';
+import Preview from './components/Preview'
 
 function App() {
   return (
@@ -9,8 +11,10 @@ function App() {
         <div className="file-tree">
           <FileTree />
         </div>
-        <div className="editor">Editor Area</div>
-        <div className="preview">Preview</div>
+        <div className="editor">
+          <Editor />
+        </div>
+        <div className="preview"> <Preview /></div>
       </div>
       <div className="statusbar">Status Bar</div>
     </div>
