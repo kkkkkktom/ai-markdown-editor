@@ -72,4 +72,8 @@
   background: #d0d0d0;
   font-weight: bold;
 }
-
+/* markdown style */
+.markdown-preview {
+  padding: 16px;
+  overflow-y: auto;
+}
