@@ -1,11 +1,7 @@
-import {
-  PanelGroup,
-  Panel,
-  PanelResizeHandle,
-} from "react-resizable-panels";
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import "./styles/global.css";
 import { message, App as AntdApp } from "antd";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import FileTree from "./components/FileTree";
 import Outline from "./components/Outline";
 import Editor from "./components/Editor";
@@ -20,6 +16,16 @@ function App() {
   const saveToLocal = useFileStore((s) => s.saveToLocal);
   const setSaved = useFileStore((s) => s.setSaved);
   const viewMode = useFileStore((s) => s.viewMode);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<"editor" | "preview">("editor");
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     loadFromLocal();
@@ -43,16 +49,25 @@ function App() {
       <div className="app-layout">
         {/* 顶部工具栏 */}
         <div className="topbar">
-          <Toolbar />
+          <Toolbar 
+          isMobile={isMobile}
+          mobileView={mobileView}
+          setMobileView={setMobileView}
+          />
         </div>
 
         {/* ✅ 使用 react-resizable-panels 创建三栏布局 */}
-        <PanelGroup direction="horizontal" style={{ height: "calc(100vh - 80px)" }}>
+        <PanelGroup
+          direction="horizontal"
+          style={{ height: "calc(100vh - 80px)" }}
+        >
           {/* 左栏：文件树 / 大纲 */}
           <Panel defaultSize={20} minSize={10}>
-            <div className="file-tree">
-              {viewMode === "file" ? <FileTree /> : <Outline />}
-            </div>
+              {!isMobile && (
+                <div className="file-tree">
+                  {viewMode === "file" ? <FileTree /> : <Outline />}
+                </div>
+              )}
           </Panel>
 
           <PanelResizeHandle className="resize-handle" />
@@ -60,7 +75,13 @@ function App() {
           {/* 中间：欢迎页 / 编辑器 */}
           <Panel defaultSize={50} minSize={30}>
             <div className="editor">
-              {viewMode === "file" ? <Welcome /> : <Editor />}
+              {isMobile
+                ? mobileView === "editor"
+                  ? <Editor />
+                  : <Preview />
+                : viewMode === "file"
+                ? <Welcome />
+                : <Editor />}
             </div>
           </Panel>
 
@@ -68,9 +89,11 @@ function App() {
 
           {/* 右栏：预览 */}
           <Panel defaultSize={30} minSize={20}>
-            <div className="preview">
-              <Preview />
-            </div>
+            {!isMobile && (
+              <div className="preview">
+                <Preview />
+              </div>
+            )}
           </Panel>
         </PanelGroup>
 

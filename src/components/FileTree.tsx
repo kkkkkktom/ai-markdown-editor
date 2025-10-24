@@ -11,6 +11,7 @@ export default function FileTree() {
     addFile,
     deleteFile,
     renameFile,
+    enterFile
   } = useFileStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export default function FileTree() {
           <li
             key={file.id}
             className={file.id === currentFileId ? "active" : ""}
-            onClick={() => setCurrentFile(file.id)}
+            onClick={() => enterFile(file.id)} 
             onContextMenu={(e) => openMenu(e, file.id)}
           >
             {/* ✅ 正在编辑 */}

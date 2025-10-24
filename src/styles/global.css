@@ -60,7 +60,7 @@ body {
 /* === 文件树 === */
 .file-tree {
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  /* border-right: 1px solid var(--border-color); */
   transition: all 0.25s ease;
   overflow-y: auto;
 }
@@ -96,7 +96,7 @@ body {
 .editor {
   flex: 1;
   background: var(--bg-primary);
-  border-right: 1px solid var(--border-color);
+  /* border-right: 1px solid var(--border-color); */
   transition: all 0.25s ease;
   position: relative;
   overflow: auto; 
@@ -106,7 +106,7 @@ body {
 .preview {
   background: var(--bg-tertiary);
   overflow-y: auto;
-  border-left: 1px solid var(--border-color);
+  /* border-left: 1px solid var(--border-color); */
   transition: all 0.3s ease;
   box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.05);
 }
@@ -206,13 +206,70 @@ body {
 
 /* 拖拽分割线 */
 .resize-handle {
-  width: 4px;
-  background: var(--border-color);
+  width: 1px;
+  background: transparent;
+  position: relative;
   cursor: col-resize;
-  transition: background 0.25s ease;
 }
 
-.resize-handle:hover {
-  background: var(--primary-color);
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 5px; /* ✅ 实际可点击区域更宽 */
+  height: 100%;
 }
+
+/* 📱 适配移动端（屏幕宽度小于 768px） */
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column; /* ✅ 三列改为一列 */
+  }
+
+  .file-tree {
+    display: none; /* ✅ 默认隐藏文件树 */
+  }
+
+  .preview {
+    display: none; /* ✅ 默认隐藏预览区 */
+  }
+
+  .editor {
+    flex: 1;
+    width: 100%;
+  }
+
+  .topbar {
+    overflow-x: auto;   /* ✅ 允许横向滚动，而不是撑爆页面 */
+    white-space: nowrap; /* ✅ 防止换行 */
+    -webkit-overflow-scrolling: touch; /* ✅ iOS 流畅滚动 */
+  }
+
+  .topbar::-webkit-scrollbar {
+    display: none; /* ✅ 隐藏滚动条 */
+  }
+
+  /* ✅ 确保整个页面不会水平滚动 */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .app-layout {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .ant-btn {
+    font-size: 13px;
+    padding: 0 8px;
+  }
+
+  .statusbar {
+    font-size: 12px;
+  }
+}
+
+
 
