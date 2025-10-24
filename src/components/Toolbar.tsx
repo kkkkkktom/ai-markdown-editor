@@ -1,9 +1,6 @@
-import { Button, Space, Tooltip, Dropdown, type MenuProps } from "antd";
+import { Button, Space, Dropdown, type MenuProps } from "antd";
 import {
   FileAddOutlined,
-  SaveOutlined,
-  UploadOutlined,
-  DownloadOutlined,
   BulbOutlined,
   BoldOutlined,
   ItalicOutlined,
@@ -20,10 +17,8 @@ const Toolbar = () => {
   const insertMarkdown = (syntax: "bold" | "italic" | "h1" | "h2" | "h3") => {
     const editor = document.querySelector<HTMLDivElement>(".cm-content");
     if (!editor || !currentFileId) return;
-
     const selection = window.getSelection();
     const selectedText = selection?.toString() || "";
-
     let replacedText = "";
     switch (syntax) {
       case "bold":
@@ -42,7 +37,6 @@ const Toolbar = () => {
         replacedText = `### ${selectedText || "三级标题"}`;
         break;
     }
-
     document.execCommand("insertText", false, replacedText);
   };
 
@@ -67,14 +61,21 @@ const Toolbar = () => {
         background: "var(--bg-secondary)",
       }}
     >
-      <Space>     
-          <Button icon={<FileAddOutlined />} onClick={addFile} />
-          <Button icon={<BoldOutlined />} onClick={() => insertMarkdown("bold")} />
-          <Button icon={<ItalicOutlined />} onClick={() => insertMarkdown("italic")} />
+      <Space>
+        <Button icon={<FileAddOutlined />} onClick={addFile} />
+        <Button icon={<BoldOutlined />} onClick={() => insertMarkdown("bold")} />
+        <Button icon={<ItalicOutlined />} onClick={() => insertMarkdown("italic")} />
         <Dropdown menu={headingMenu} placement="bottomLeft">
-            <Button icon={<FontSizeOutlined />} />
+          <Button icon={<FontSizeOutlined />} />
         </Dropdown>
+        <Button
+        icon={<BulbOutlined />}
+        onClick={toggleTheme}
+        title={theme === "light" ? "切换到暗色" : "切换到亮色"}
+      />
       </Space>
+
+      
     </div>
   );
 };
