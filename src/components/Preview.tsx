@@ -34,11 +34,15 @@ export default function Preview() {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
+        skipHtml={false}
         components={{
-          code: CodeBlock, // 👈 引用独立组件
+          a: ({ node, ...props }) => (
+            <a {...props} target="_blank" rel="noopener noreferrer" />
+          ),
+          code: CodeBlock,
         }}
       >
-        {currentFile.content}
+        {currentFile.content.replace(/\n/g, "  \n")}
       </ReactMarkdown>
     </div>
   );
