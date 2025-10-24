@@ -1,21 +1,21 @@
-import { Button, Space, Dropdown, type MenuProps, message } from "antd";
+import { Button, Space, Dropdown, Upload, Tooltip, type MenuProps, message } from "antd";
 import {
   FileAddOutlined,
-  BulbOutlined,
+  SaveOutlined,
+  DownloadOutlined,
+  UploadOutlined,
   BoldOutlined,
   ItalicOutlined,
   FontSizeOutlined,
   LinkOutlined,
   TableOutlined,
   CheckSquareOutlined,
-  SaveOutlined,
+  BulbOutlined,
 } from "@ant-design/icons";
 import { useFileStore } from "../store/useFileStore";
+import { downloadFile, readMarkdownFile } from "../utils/file";
 
-/**
- * 在 CodeMirror 编辑器中插入 Markdown 语法
- * 通过选中内容或光标位置插入
- */
+// Markdown 插入逻辑
 const insertMarkdownSyntax = (syntax: string) => {
   const editorEl = document.querySelector<HTMLDivElement>(".cm-content");
   if (!editorEl) {
@@ -57,13 +57,11 @@ const insertMarkdownSyntax = (syntax: string) => {
       break;
   }
 
-  // 使用更安全的插入方式（避免 execCommand 被废弃）
   const range = selection?.getRangeAt(0);
   if (range) {
     range.deleteContents();
     range.insertNode(document.createTextNode(textToInsert));
 
-    // 光标移到文本末尾
     const newRange = document.createRange();
     newRange.selectNodeContents(editorEl);
     newRange.collapse(false);
@@ -77,22 +75,53 @@ const Toolbar = () => {
   const toggleTheme = useFileStore((s) => s.toggleTheme);
   const theme = useFileStore((s) => s.theme);
   const saveToLocal = useFileStore((s) => s.saveToLocal);
+  const files = useFileStore((s) => s.files);
   const currentFileId = useFileStore((s) => s.currentFileId);
+  const setFiles = useFileStore.setState;
 
+  const currentFile = files.find((f) => f.id === currentFileId);
+
+  // 导出 Markdown
+  const handleExport = () => {
+    if (!currentFile) {
+      message.warning("请选择要导出的文件");
+      return;
+    }
+    downloadFile(currentFile.name, currentFile.content);
+    message.success(`已导出 ${currentFile.name}.md ✅`);
+  };
+
+  // 导入 Markdown
+  const handleImport = async (file: File) => {
+    try {
+      const content = await readMarkdownFile(file);
+      const newFile = {
+        id: Date.now().toString(),
+        name: file.name.replace(".md", ""),
+        content,
+        createdAt: new Date(),
+      };
+      setFiles((state) => ({ files: [...state.files, newFile] }));
+      message.success(`成功导入 ${file.name}`);
+    } catch (err) {
+      message.error("导入失败，请重试");
+    }
+  };
+
+  // 标题菜单
   const headingMenu: MenuProps = {
     items: [
       { key: "h1", label: "H1 一级标题" },
       { key: "h2", label: "H2 二级标题" },
       { key: "h3", label: "H3 三级标题" },
     ],
-    onClick: (info) =>
-      insertMarkdownSyntax(info.key as "h1" | "h2" | "h3"),
+    onClick: (info) => insertMarkdownSyntax(info.key),
   };
 
   return (
     <div
       style={{
-        height: 48,
+        height: 50,
         padding: "0 12px",
         borderBottom: "1px solid var(--border-color)",
         display: "flex",
@@ -103,36 +132,77 @@ const Toolbar = () => {
     >
       <Space>
         {/* 文件操作 */}
-        <Button icon={<FileAddOutlined />} onClick={addFile} title="新建文件" />
-        <Button
-          icon={<SaveOutlined />}
-          onClick={() => {
-            saveToLocal();
-            message.success("手动保存成功 ✅");
+        <Tooltip title="新建文件" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<FileAddOutlined />} onClick={addFile} />
+        </Tooltip>
+
+        <Tooltip title="保存到本地" placement="top" mouseEnterDelay={0.3}>
+          <Button
+            icon={<SaveOutlined />}
+            onClick={() => {
+              saveToLocal();
+              message.success("手动保存成功 ✅");
+            }}
+          />
+        </Tooltip>
+
+        <Tooltip title="导出 Markdown" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<DownloadOutlined />} onClick={handleExport} />
+        </Tooltip>
+
+        <Upload
+          showUploadList={false}
+          accept=".md"
+          beforeUpload={(file) => {
+            handleImport(file);
+            return false;
           }}
-          title="保存到本地"
-        />
+        >
+          <Tooltip title="导入 Markdown" placement="top" mouseEnterDelay={0.3}>
+            <Button icon={<UploadOutlined />} />
+          </Tooltip>
+        </Upload>
 
         {/* Markdown 编辑快捷按钮 */}
-        <Button icon={<BoldOutlined />} onClick={() => insertMarkdownSyntax("bold")} />
-        <Button icon={<ItalicOutlined />} onClick={() => insertMarkdownSyntax("italic")} />
+        <Tooltip title="加粗" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<BoldOutlined />} onClick={() => insertMarkdownSyntax("bold")} />
+        </Tooltip>
+
+        <Tooltip title="斜体" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<ItalicOutlined />} onClick={() => insertMarkdownSyntax("italic")} />
+        </Tooltip>
 
         <Dropdown menu={headingMenu} placement="bottomLeft">
-          <Button icon={<FontSizeOutlined />} title="插入标题" />
+          <Tooltip title="插入标题" placement="top" mouseEnterDelay={0.3}>
+            <Button icon={<FontSizeOutlined />} />
+          </Tooltip>
         </Dropdown>
 
-        <Button icon={<LinkOutlined />} onClick={() => insertMarkdownSyntax("link")} title="插入链接" />
-        <Button icon={<CheckSquareOutlined />} onClick={() => insertMarkdownSyntax("task")} title="插入任务列表" />
-        <Button icon={<TableOutlined />} onClick={() => insertMarkdownSyntax("table")} title="插入表格" />
+        <Tooltip title="插入链接" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<LinkOutlined />} onClick={() => insertMarkdownSyntax("link")} />
+        </Tooltip>
+
+        <Tooltip title="插入任务列表" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<CheckSquareOutlined />} onClick={() => insertMarkdownSyntax("task")} />
+        </Tooltip>
+
+        <Tooltip title="插入表格" placement="top" mouseEnterDelay={0.3}>
+          <Button icon={<TableOutlined />} onClick={() => insertMarkdownSyntax("table")} />
+        </Tooltip>
       </Space>
 
       {/* 主题切换 */}
-      <Button
-        icon={<BulbOutlined />}
-        onClick={toggleTheme}
-        type="text"
+      <Tooltip
         title={theme === "light" ? "切换到暗色模式" : "切换到亮色模式"}
-      />
+        placement="top"
+        mouseEnterDelay={0.3}
+      >
+        <Button
+          icon={<BulbOutlined />}
+          onClick={toggleTheme}
+          type="text"
+        />
+      </Tooltip>
     </div>
   );
 };
