@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+.env.local
 node_modules
 dist
 dist-ssr
@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# 忽略所有 .env 相关文件（除了示例文件 .env.example）
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+!.env.example  # 感叹号表示“不忽略”，通常用于存放示例配置（不含敏感信息）

@@ -14,7 +14,7 @@ export default function Welcome() {
         color: "var(--text-color)",
       }}
     >
-      <h2>📄 欢迎使用 Markdown Editor</h2>
+      <h2>欢迎使用 Markdown Editor</h2>
       <p style={{ marginTop: 8, color: "#888" }}>
         从左侧选择一个文件开始编辑，或创建一个新文档。
       </p>

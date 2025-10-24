@@ -10,6 +10,8 @@ import Welcome from "./components/Welcome";
 import Toolbar from "./components/Toolbar";
 import StatusBar from "./components/StatusBar";
 import { useFileStore } from "./store/useFileStore";
+import AIChat from "./components/AIChat";
+
 
 function App() {
   const loadFromLocal = useFileStore((s) => s.loadFromLocal);
@@ -65,7 +67,13 @@ function App() {
           <Panel defaultSize={20} minSize={10}>
               {!isMobile && (
                 <div className="file-tree">
-                  {viewMode === "file" ? <FileTree /> : <Outline />}
+                  {viewMode === "file" ? (
+                    <FileTree />
+                  ) : viewMode === "editor" ? (
+                    <Outline />
+                  ) : (
+                    <AIChat /> // 👈 这是新组件（AI 聊天界面）
+                  )}
                 </div>
               )}
           </Panel>

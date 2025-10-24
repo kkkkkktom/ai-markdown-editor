@@ -32,6 +32,7 @@ import { useFileStore } from "../store/useFileStore";
 import { downloadFile, readMarkdownFile } from "../utils/file";
 import { useState } from "react";
 import { EditorSelection } from "@codemirror/state";
+import { generateMarkdownByAI } from "../api/ai";
 
 // Markdown 插入逻辑
 const insertMarkdownSyntax = (syntax: string) => {
@@ -126,23 +127,57 @@ const Toolbar = ({ isMobile, mobileView, setMobileView }: ToolbarProps) => {
   };
 
   // 模拟 AI 生成逻辑（后续会替换成实际接口）
-  const handleAIGenerate = () => {
-    if (!aiPrompt.trim()) return message.warning("请输入生成主题");
+const handleAIGenerate = async () => {
+  if (!aiPrompt.trim()) return message.warning("请输入生成主题");
 
-    message.loading("AI 正在生成内容...", 1.2);
-    setTimeout(() => {
-      const newFile = {
-        id: Date.now().toString(),
-        name: `AI生成-${aiPrompt}`,
-        content: `# ${aiPrompt}\n\n由 AI 自动生成的 Markdown 示例。\n\n## 概述\nAI 可以根据输入主题生成结构化 Markdown 内容。\n\n- 支持多级标题\n- 自动分段与列点\n- 可结合手动编辑优化\n\n\`\`\`js\nconsole.log("AI Markdown Ready!");\n\`\`\`\n`,
-        createdAt: new Date(),
-      };
-      setFiles((state) => ({ files: [...state.files, newFile] }));
-      message.success("AI 生成完成 ✅");
-      setAiPrompt("");
-      setIsAIModalVisible(false);
-    }, 1500);
-  };
+  message.loading("AI 正在生成内容...", 1.2);
+
+  try {
+    const resp = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "qwen-flash",
+        messages: [
+          {
+            role: "system",
+            content: "你是一个 Markdown 写作助手，请始终用合理的 Markdown 结构输出。",
+          },
+          {
+            role: "user",
+            content: `请根据主题《${aiPrompt}》输出结构化的 Markdown，包含：一级/二级标题、要点列表、代码示例（如适用），最后加上结尾总结。`,
+          },
+        ],
+      }),
+    });
+
+    const data = await resp.json();
+
+    // ✅ 取出返回的 Markdown 内容
+    const content = data?.choices?.[0]?.message?.content || "";
+
+    // ✅ 创建一个新文件并写入内容
+    const newFile = {
+      id: Date.now().toString(),
+      name: `AI生成-${aiPrompt}`,
+      content,
+      createdAt: new Date(),
+    };
+    useFileStore.setState((state) => ({
+      files: [...state.files, newFile],
+      currentFileId: newFile.id,
+      viewMode: "editor",
+    }));
+
+    message.success("AI 生成完成 ✅");
+    setAiPrompt("");
+    setIsAIModalVisible(false);
+  } catch (err) {
+    console.error(err);
+    message.error("AI 生成失败");
+  }
+};
+
 
   // 标题菜单
   const headingMenu: MenuProps = {
@@ -207,12 +242,15 @@ const Toolbar = ({ isMobile, mobileView, setMobileView }: ToolbarProps) => {
 
           <Tooltip title="AI 生成文档" placement="top" mouseEnterDelay={0.3}>
             <Button
-              type="primary"
-              icon={<RobotOutlined />}
-              onClick={() => setIsAIModalVisible(true)}
-            >
-              AI 生成
-            </Button>
+                type="primary"
+                icon={<RobotOutlined />}
+                onClick={() => {
+                    const { viewMode, setViewMode } = useFileStore.getState();
+                    setViewMode(viewMode === "ai" ? "editor" : "ai"); // 👈 切换显示 AI 聊天界面
+                }}
+                >
+                AI 生成
+                </Button>
           </Tooltip>
 
           <Tooltip title="导出 Markdown" placement="top" mouseEnterDelay={0.3}>
@@ -289,7 +327,6 @@ const Toolbar = ({ isMobile, mobileView, setMobileView }: ToolbarProps) => {
               onClick={() => setIsGuideVisible(true)}
             />
           </Tooltip>
-
         </Space>
 
         {/* 主题切换 */}

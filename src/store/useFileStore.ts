@@ -5,7 +5,7 @@ import type { EditorView } from "@codemirror/view";
 const STORAGE_KEY = "markdown_files";
 
 // 页面视图类型
-type ViewMode = "file" | "editor";
+type ViewMode = "file" | "editor" | "ai";
 
 interface FileStore {
   // === 状态 ===
@@ -18,7 +18,7 @@ interface FileStore {
 
   // === 操作 ===
   toggleTheme: () => void;
-  setViewMode: (mode: ViewMode) => void;
+  setViewMode: (mode: "file" | "editor" | "ai") => void
   setSaved: (saved: boolean) => void;
 
   addFile: () => void;
