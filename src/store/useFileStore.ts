@@ -41,6 +41,10 @@ interface FileStore {
 
   // === 文件进入逻辑 ===
   enterFile: (id: string) => void;
+
+  //保存ai校对结果
+  proofreadingErrors: { from: number; to: number; message: string }[];
+  setProofreadingErrors: (errors: { from: number; to: number; message: string }[]) => void;
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -54,6 +58,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   editorView: null,
   setEditorView: (view) => set({ editorView: view }),
+
+  proofreadingErrors: [],
+  setProofreadingErrors: (errors) => set({ proofreadingErrors: errors }),
 
   // === 页面导航栈（类似浏览器历史）===
   navStack: ["file"], // 初始在文件列表页

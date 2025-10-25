@@ -6,7 +6,58 @@ import { EditorSelection } from "@codemirror/state";
 import { useFileStore } from "../store/useFileStore";
 import { useCallback, useEffect, useRef } from "react";
 import { debounce } from "../utils/debounce";
-import { message } from "antd";
+import { Decoration, ViewPlugin } from "@codemirror/view";
+import { RangeSetBuilder } from "@codemirror/state";
+
+
+// ✅ 校对高亮插件
+const proofreadingPlugin = ViewPlugin.fromClass(
+  class {
+    decorations;
+
+    constructor(view) {
+      const errors = useFileStore.getState().proofreadingErrors;
+      const builder = new RangeSetBuilder();
+
+      errors.forEach((err) => {
+        builder.add(
+          err.from,
+          err.to,
+          Decoration.mark({
+            class: "proofread-error",
+            attributes: { title: err.message }, // 鼠标悬浮提示
+          })
+        );
+      });
+
+      this.decorations = builder.finish();
+    }
+
+    update(update) {
+      // 当 store 更新时刷新
+      if (update.docChanged || update.viewportChanged) {
+        const errors = useFileStore.getState().proofreadingErrors;
+        const builder = new RangeSetBuilder();
+
+        errors.forEach((err) => {
+          builder.add(
+            err.from,
+            err.to,
+            Decoration.mark({
+              class: "proofread-error",
+              attributes: { title: err.message },
+            })
+          );
+        });
+
+        this.decorations = builder.finish();
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
 
 // 🧩 工具函数：包裹或插入 Markdown 语法
 const wrapOrInsert = (
@@ -27,10 +78,7 @@ const wrapOrInsert = (
       const unwrapped = toggle.unwrap(selText);
       return {
         changes: { from: range.from, to: range.to, insert: unwrapped },
-        range: EditorSelection.range(
-          range.from,
-          range.from + unwrapped.length
-        ),
+        range: EditorSelection.range(range.from, range.from + unwrapped.length),
       };
     }
 
@@ -113,8 +161,79 @@ const fenceCode = (view: EditorView, lang = "js") => {
   return true;
 };
 
+let controller: AbortController | null = null;
+
+const checkProofread = async (text: string) => {
+  if (controller) controller.abort(); // ✅ 取消上一次请求
+  controller = new AbortController();
+
+  try {
+    const resp = await fetch("http://localhost:8787/api/ai/proofread", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+      signal: controller.signal,
+    });
+
+    const data = await resp.json();
+
+    // ✅ 容错处理：兼容多种格式
+    let parsed = [];
+
+    if (Array.isArray(data.errors)) {
+      // 🔹 正常格式：{ errors: [{ from, to, message }] }
+      parsed = data.errors;
+    } else if (typeof data.errors === "string") {
+      // 🔹 模型可能返回字符串（带 ```json``` 包裹）
+      let raw = data.errors.replace(/```json|```/g, "").trim();
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        console.warn("⚠️ JSON 解析失败：", raw);
+      }
+    } else if (
+      data.errors?.[0]?.message &&
+      typeof data.errors[0].message === "string"
+    ) {
+      // 🔹 有时返回 { errors: [{ message: "[{...}]" }] }
+      let raw = data.errors[0].message.replace(/```json|```/g, "").trim();
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        console.warn("⚠️ JSON 解析失败：", raw);
+      }
+    }
+
+    // ✅ 校准位置，防止越界
+    const view = useFileStore.getState().editorView;
+    const docLength = view?.state.doc.length || 0;
+
+    parsed = parsed.map((err) => ({
+      ...err,
+      from: Math.min(err.from, docLength),
+      to: Math.min(err.to, docLength),
+    }));
+
+    console.log("✅ Proofread parsed:", parsed);
+
+    // ✅ 存入全局状态（供插件高亮）
+    useFileStore.getState().setProofreadingErrors(parsed);
+
+    // ✅ 强制刷新编辑器，使红线立即出现
+    if (view) view.dispatch({ changes: [] });
+  } catch (e) {
+    if (e.name !== "AbortError") console.warn("AI 校对失败");
+  }
+};
+
+
+
+
 export default function Editor() {
-  const { files, currentFileId, setSaved, saveToLocal ,setEditorView } = useFileStore();
+  
+
+  const { files, currentFileId, setSaved, saveToLocal, setEditorView } =
+    useFileStore();
   const currentFile = files.find((f) => f.id === currentFileId);
   const saveTimer = useRef<number | null>(null);
 
@@ -126,12 +245,14 @@ export default function Editor() {
           f.id === id ? { ...f, content: value } : f
         ),
       }));
+
       setSaved(false);
 
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => {
         saveToLocal();
         setSaved(true);
+        checkProofread(value); // ✅ 调用 AI 校对
         console.log("💾 Auto-saved after 2s idle");
       }, 2000);
     }, 300),
@@ -183,16 +304,41 @@ export default function Editor() {
               }),
           },
           // ✨ 代码块
-          { key: "Mod-Shift-c", preventDefault: true, run: (v) => fenceCode(v) },
+          {
+            key: "Mod-Shift-c",
+            preventDefault: true,
+            run: (v) => fenceCode(v),
+          },
           // ✨ 标题：避免浏览器冲突，使用 Ctrl+Alt+1/2/3
-          { key: "Mod-Alt-1", preventDefault: true, run: (v) => setHeading(v, 1) },
-          { key: "Mod-Alt-2", preventDefault: true, run: (v) => setHeading(v, 2) },
-          { key: "Mod-Alt-3", preventDefault: true, run: (v) => setHeading(v, 3) },
+          {
+            key: "Mod-Alt-1",
+            preventDefault: true,
+            run: (v) => setHeading(v, 1),
+          },
+          {
+            key: "Mod-Alt-2",
+            preventDefault: true,
+            run: (v) => setHeading(v, 2),
+          },
+          {
+            key: "Mod-Alt-3",
+            preventDefault: true,
+            run: (v) => setHeading(v, 3),
+          },
           // ✨ 引用、任务、表格
-          { key: "Mod-Alt-q", preventDefault: true, run: (v) => prefixLine(v, "> ") },
-          { key: "Mod-Alt-l", preventDefault: true, run: (v) => prefixLine(v, "- [ ] ", "待办事项") },
+          {
+            key: "Mod-Alt-q",
+            preventDefault: true,
+            run: (v) => prefixLine(v, "> "),
+          },
+          {
+            key: "Mod-Alt-l",
+            preventDefault: true,
+            run: (v) => prefixLine(v, "- [ ] ", "待办事项"),
+          },
           { key: "Mod-Alt-t", preventDefault: true, run: insertTable },
         ]),
+        proofreadingPlugin,
       ]}
       height="100%"
       onChange={onChange}

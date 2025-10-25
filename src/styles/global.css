@@ -271,5 +271,11 @@ body {
   }
 }
 
+/* global.css */
+.proofread-error {
+  text-decoration:  underline red;
+  text-underline-offset: 3px;
+  cursor: help;
+}
 
 
